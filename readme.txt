@@ -1,1 +1,1 @@
-A conglomeration of EECS 293 (Software Craftsmanship) assignments
+A conglomeration of EECS 293 (Software Craftsmanship) assignments.
