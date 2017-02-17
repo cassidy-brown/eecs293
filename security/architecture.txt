@@ -1,0 +1,25 @@
+Security Log Parser defense architecture
+
+Robust/Correct
+The program favors robustness when it comes to numbers (attempts, primarily)
+	but favors correctness when handling IP addresses, as we do not want to accidentally ban the wrong user
+
+Exceptions
+All exceptions are caught and logged. 
+	In the one case where it is not logged, it is involved in a validity check and returns false (invalid),
+	which triggers a more appropriate exception later on.
+To avoid throwing exceptions in nominal cases, boolean checks were implemented in several locations
+There are no empty catch blocks and all thrown exceptions have appropriate messages and information included
+	
+Barricades
+Large barricades are notably not existent, and data is checked at smaller intervals.
+This is partially due to the nature of working with Streams; large scale manipulation doesn't work terribly well
+traverseEntries does serve barricade-like purposes, guaranteeing that the String passed to be parsed into a User value is not null
+
+Assertions
+Assertions should have been used more, but didn't quite happen to the desired extent.
+
+Handling bad inputs:
+	Threshold: Handled in findThreshold 
+	Log input: Handled primarily in findNextInterestingLine, but checked throughout 
+		as it is difficult to examine a stream for valid input all at once

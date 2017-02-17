@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project basedir="." default="test" name="cmb195_maxrun">
+
+	<property name="src" location="src" />
+	<property name="test" location="test" />
+	<property name="bin" location="bin" />
+	<property name="lib" location="lib" />
+	
+	<target name="build">
+       	<mkdir dir="${bin}"/>
+		<javac srcdir="${src}" destdir="${bin}" includeantruntime="true" />
+		<javac srcdir="${test}" destdir="${bin}" includeantruntime="true" />
+	</target>
+
+ 	<target name="test" depends="build">
+		<junit printsummary="yes">
+			<classpath>
+				<fileset dir="${lib}" includes="**/*.jar"/>
+				<pathelement location="${bin}"/>
+			</classpath>
+			<batchtest>
+				<fileset dir="${test}">
+					<include name="**/*Test.java"/>
+				</fileset>
+			</batchtest>
+			<formatter type="plain" usefile="false"/>
+		</junit>
+	</target>
+	
+	<target name="clean">
+		<delete dir="${bin}" />
+	</target>
+</project>
+

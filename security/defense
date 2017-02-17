@@ -1,0 +1,96 @@
+1	main 
+2	findThreshold	
+3	Constructor
+4	  buildBlackList
+5	    done
+6	    findNextInterestingLine
+7	      lineType
+8	    handleInterestingLine
+9	      handleFailedLogins
+10	      handleIllegalUsers
+11	      	traverseEntries
+12	      	  allWhite
+13	      	  parseLine
+14	      	    determineIP
+15	      	      startOfIP
+16	      	      isValidByte
+17	      	      isPartOfIP
+18	      	      validateNumBytes
+19	      	    determineHost
+20	      	    determineNumTimes
+21	      	    placeInUserMap
+22	      	      user.update
+
+
+1. Main: Dirty, dirty, dirty
+	args[] -> passed to findThreshold
+2. FindThreshold
+	String[] problems: null --> return default
+	ParseInt problems: NumberFormatException --> catch, return default
+	int problems: negative threshold illogical --> return 0
+	**Sanitization: threshold is reasonable
+3. Constructor
+	int problem: negative threshold set to 0
+4. buildBlackList
+	Avoid null pointer errors (and unnecessary traversal) via done()
+5. done
+	checks completion flags
+6. findNextInterestingLine
+	Reader problems: logs IO exception from readLine --> ? Honestly don't know what to do with it
+7. lineType
+	String problem: null --> designated enum for it (important in context)
+8. handleInterestingLine
+	LineType issue: expect anything but boring boring --> assert that line is in fact not boring
+	All cases covered
+9. handleFailedLogins
+	-- sets flag for buildBlackList/done's use
+10. handleIllegalUsers
+	-- sets flag for buildBlackList/done's use
+11.	traverseEntries
+	Reader problems: log I/O exception, idk
+	String problems: null --> check for
+					 all whitespace (special identifying case) --> check for
+	**Sanitization: line is guaranteed to be non-null 
+12. allWhite
+	String problems: null --> won't occur, sanitized by traverseEntries
+13. parseLine
+	String problem: null --> occur, won't sanitized by traverseEntries
+	IP Problem: catch InvalidIPException from determineIP --> log warning
+	Host problem: none;
+	Attempts problem: catch ParseException --> log warning
+14. determineIP
+	String problem: null --> pre-sanitized
+	Shouldn't happen, caught higher up:
+		Bad byte: throw InvalidIPException
+		Wrong number of bytes: throw InvalidIPException
+15. startOfIP
+	String problem: null --> pre-sanitized
+	No IP (no digits found) problem: throw InvalidIPException (caught higher up)
+16. isValidByte
+	String problem: null --> pre-sanitized
+	Parse problem: catch NumberFormatException --> return false (isn't valid)
+17. isPartOfIP
+	String problem: null --> pre-sanitized
+	int problem: negative: as an index value, guaranteed to be non-negative by determineIP
+				 exceeds String length: checked
+18. validateNumBytes
+	int problem: we're checking against a specific number, you can't really have a problem
+					--> throws InvalidIPException, caught higher up
+	String problem: null --> just passing it along as a message
+19. determineHost
+	String problem: null --> pre-sanitized
+					desired characters not present --> checked
+20. determineNumTimes
+	String problem: null --> pre-sanitized
+					desired characters not present --> throw ParseException, caught higher up
+	Doesn't explicitly handle no numbers/numbers to index 0...
+21. placeInUserMap
+	String problem: null --> guaranteed not-null by parseLine
+	int problem: negative --> guaranteed non-negative by parseLine (determineNumTimes)
+	User problem: null --> checked
+22. user.update
+	String problem: null --> checked in offerHost
+	int problem: poor handling currently, but it manages... 
+23. PrintBlackList
+	Everything is exactly as it should be in blackList, no worries
+	

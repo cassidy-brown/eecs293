@@ -1,0 +1,581 @@
+diff --git a/build.xml b/build.xml
+new file mode 100644
+index 0000000..ebac17a
+--- /dev/null
++++ b/build.xml
+@@ -0,0 +1,34 @@
++<?xml version="1.0" encoding="UTF-8" standalone="no"?>
++<project basedir="." default="test" name="cmb195_maxrun">
++
++	<property name="src" location="src" />
++	<property name="test" location="src" />
++	<property name="bin" location="bin" />
++	<property name="lib" location="lib" />
++	
++	<target name="build">
++       	<mkdir dir="${bin}"/>
++		<javac srcdir="${src}" destdir="${bin}" includeantruntime="true" />
++		<javac srcdir="${test}" destdir="${bin}" includeantruntime="true" />
++	</target>
++
++ 	<target name="test" depends="build">
++		<junit printsummary="yes">
++			<classpath>
++				<fileset dir="${lib}" includes="**/*.jar"/>
++				<pathelement location="${bin}"/>
++			</classpath>
++			<batchtest>
++				<fileset dir="${test}">
++					<include name="**/*Test.java"/>
++				</fileset>
++			</batchtest>
++			<formatter type="plain" usefile="false"/>
++		</junit>
++	</target>
++	
++	<target name="clean">
++		<delete dir="${bin}" />
++	</target>
++</project>
++
+diff --git a/lib/junit.jar b/lib/junit.jar
+new file mode 100644
+index 0000000..aaf7444
+Binary files /dev/null and b/lib/junit.jar differ
+diff --git a/lib/org.hamcrest.core_1.3.0.v201303031735.jar b/lib/org.hamcrest.core_1.3.0.v201303031735.jar
+new file mode 100644
+index 0000000..52ab887
+Binary files /dev/null and b/lib/org.hamcrest.core_1.3.0.v201303031735.jar differ
+diff --git a/src/chemistry/FormulaChecker.java b/src/chemistry/FormulaChecker.java
+index c51837d..c475db9 100644
+--- a/src/chemistry/FormulaChecker.java
++++ b/src/chemistry/FormulaChecker.java
+@@ -1,7 +1,9 @@
+ package chemistry;
+ 
++import java.util.Stack;
++
+ /**
+- * This objects purpose is to take a string and check it to see if it is a syntactically correct chemical formula. It outputs true 
++ * This object's purpose is to take a string and check it to see if it is a syntactically correct chemical formula. It outputs true 
+  * if the formula is valid and false in all other circumstances
+  */
+ public class FormulaChecker {
+@@ -11,56 +13,65 @@ public class FormulaChecker {
+ 	private boolean correctFormula;
+ 	
+ 	// Used for the logic of what characters will be valid in the formula
+-	private boolean parenthesesValid;
+ 	private boolean upperCaseValid;
+ 	private boolean lowerCaseValid;
+-	private int numLowerCase;
+-	private int numElements;
+ 	private boolean numberValid;
+-	private boolean inParentheses;
++	private boolean parenthesesValid;
++	private int numLowerCase;
++	
++	// Used for nesting parentheses and checking multiple elements are within parentheses
++	private Stack<Integer> parenStack;
+ 	
+ 	// Used for multiplier checking logic to ensure 1 and 0 are not multipliers
+ 	private int numbersInARow;
++	private boolean solitaryOne;
+ 	
+ 	/**
+ 	 * This is the main method which is used to check a chemical formula.
+ 	 * @param formula -- The formula being checked
+ 	 * @return -- True if the formula is syntactically correct, false in all other cases
+ 	 */
++	//3
+ 	public boolean checkFormula(String formula) {
+ 		// Before the formula is checked all the logic is set
+ 		setLogic();
+ 		
+ 		// Handling invalid input forms
+-		if(formula == null) {
+-			syntaxFailure("String is null");
+-		}
++		checkForInvalidInput(formula);
+ 		
+-		if(formula == "") {
+-			syntaxFailure("String is empty");
++		// Iterates through the string checking its characters until the end or the formula is deemed incorrect
++		int i = 0;
++		while(i < formula.length() && correctFormula){
++			processChar(formula.charAt(i));	
++			i++;
++		}
++		// Checks to make sure all parentheses were completed, given loop completed String
++		if(i == formula.length()){
++			checkForUnfinishedParentheses();
++			checkSolitaryOne();
+ 		}
+ 		
+-		// Iterates through the string checking it's characters
+-		char[] characterFormula = formula.toCharArray();
+-		for(int i=0; i<=characterFormula.length; i++) {
+-			if(correctFormula == false) {
+-				return solution();
+-			}
+-			processChar(characterFormula[i]);
++		return result();
++	}
++	
++	/**
++	 * Checks if an input String is null or empty and creates a syntax failure in either case
++	 * @param input String to check 
++	 */
++	public void checkForInvalidInput(String input){
++		if(input == null) {
++			syntaxFailure("String is null");
++		} else if(input.isEmpty()) {	
++			syntaxFailure("String is empty");
+ 		}
+-		// Checks to make sure all parentheses were completed
+-		checkForUnfinishedParentheses();
+-
+-		return solution();
+ 	}
+ 	
+ 	/**
+ 	 * Prints out messages and returns the solution boolean. This is entirely for readability.
+ 	 * @return -- Returns whatever correctFormula is
+ 	 */
+-	private boolean solution() {
+-		System.out.println(booleanToOutput(correctFormula));
+-		System.out.println(failureMessage);
++	private boolean result() {
++		System.out.printf("%s: %s\n", booleanToOutput(correctFormula), failureMessage);
+ 		return correctFormula;
+ 	}
+ 	
+@@ -81,7 +92,7 @@ public class FormulaChecker {
+ 	 * Checks for unfinished parentheses. If there are it calls a syntax failure with an appropriate message.
+ 	 */
+ 	private void checkForUnfinishedParentheses() {
+-		if(inParentheses) {
++		if(!parenStack.empty()) {
+ 			syntaxFailure("Uncompleted parentheses");
+ 		}
+ 	}
+@@ -90,15 +101,16 @@ public class FormulaChecker {
+ 	 * Processes individual characters of the formula being examined to see if they fit with what is syntactically correct
+ 	 * @param c -- The character being examined
+ 	 */
++	//4
+ 	private void processChar(char c) {
+ 		// This logic directs the character processing to the appropriate case
+ 		if(isUpperCase(c)) {
+ 			processUpperCase(c);
+-		} else if(isNumber(c)) {
+-			processNumber(c);
+ 		} else if(isLowerCase(c)){
+ 			processLowerCase(c);
+ 		} else if(isNumber(c)) {
++			processNumber(c);
++		} else if(isParentheses(c)) {
+ 			processParentheses(c);
+ 		} else {
+ 			// If the character is none of the expected values the syntax is invalid because of an invalid character
+@@ -112,7 +124,7 @@ public class FormulaChecker {
+ 	 * @return -- True if c is an upper case letter and false otherwise
+ 	 */
+ 	private boolean isUpperCase(char c) {
+-		return Character.getType((int)c)==Character.UPPERCASE_LETTER;
++		return Character.getType(c) == Character.UPPERCASE_LETTER;
+ 	}
+ 	
+ 	/**
+@@ -121,7 +133,7 @@ public class FormulaChecker {
+ 	 * @return -- True if c is a lower case letter and false otherwise
+ 	 */
+ 	private boolean isLowerCase(char c) {
+-		return Character.getType((int)c)==Character.LOWERCASE_LETTER;
++		return Character.getType(c) == Character.LOWERCASE_LETTER;
+ 	}
+ 	
+ 	/**
+@@ -130,13 +142,13 @@ public class FormulaChecker {
+ 	 * @return -- True if c is a number and false otherwise
+ 	 */
+ 	private boolean isNumber(char c) {
+-		return Character.getType((int)c)== Character.DECIMAL_DIGIT_NUMBER;
++		return Character.getType(c) == Character.DECIMAL_DIGIT_NUMBER;
+ 	}
+ 	
+ 	/**
+-	 * Checks if c is a parentheses
++	 * Checks if c is a parenthesis
+ 	 * @param c -- Char being checked
+-	 * @return -- True if c is a parentheses and false otherwise
++	 * @return -- True if c is a parenthesis and false otherwise
+ 	 */
+ 	private boolean isParentheses(char c) {
+ 		return c == '(' || c == ')';
+@@ -147,18 +159,19 @@ public class FormulaChecker {
+ 	 * 	case letters in a row is also reset.
+ 	 */
+ 	private void processUpperCase(char c) {
+-		assert Character.getType((int)c)==Character.TITLECASE_LETTER;
++		assert Character.getType(c) == Character.UPPERCASE_LETTER;
++		checkSolitaryOne();			//Ensure a number doesn't have a multiplier of 1
+ 		if(upperCaseValid) {
+ 			// Appropriate logic changes
+ 			lowerCaseValid = true;
+ 			numberValid = true;
+-			numLowerCase = 0;
+ 			parenthesesValid = true;
+ 			
++			numLowerCase = 0;
++			numbersInARow = 0;
++			
+ 			// Keeps track of how many elements are inside a set of parentheses
+-			if(inParentheses) {
+-				numElements++;
+-			}
++			incrementStackHead();
+ 			
+ 		} else {
+ 			syntaxFailure("Upper case invalid");
+@@ -170,11 +183,12 @@ public class FormulaChecker {
+ 	 * 	another lower case letter.
+ 	 */
+ 	private void processLowerCase(char c) {
+-		assert Character.getType((int)c)==Character.LOWERCASE_LETTER;
++		assert Character.getType(c) == Character.LOWERCASE_LETTER;
+ 		if(lowerCaseValid) {
++			numbersInARow = 0;
+ 			// Increment the number of lower case letters in a row. If it is 2 or greater there cannot be another lower case letter.
+ 			numLowerCase++;
+-			if(numLowerCase>=1) {
++			if(numLowerCase > 1) {
+ 				lowerCaseValid = false;
+ 			}
+ 		} else {
+@@ -187,19 +201,26 @@ public class FormulaChecker {
+ 	 * If the character being processed is a number then there cannot be a lower case letter after it
+ 	 */
+ 	private void processNumber(char c) {
+-		assert Character.getType((int)c)==Character.DECIMAL_DIGIT_NUMBER;
+-		if(parenthesesValid) {
++		assert Character.getType(c) == Character.DECIMAL_DIGIT_NUMBER;
++		if(numberValid) {
+ 			// Base logic changes for a number
+-			lowerCaseValid = true;
+ 			upperCaseValid = true;
++			lowerCaseValid = false;
+ 			parenthesesValid = true;
++			
++			numLowerCase = 0;
++			
+ 			// Logic for ensuring a proper first digit in the multiplier. Includes incrementing numbersInARow.
+ 			checkForOverflow(numbersInARow);
+ 			numbersInARow++;
+ 			if(numbersInARow == 1) {
+ 				if(c == '0') {
+ 					syntaxFailure("0 is not a valid first digit to a multiplier");
++				} else if (c == '1'){
++					solitaryOne = true;
+ 				}
++			} else {
++				solitaryOne = false;
+ 			}
+ 		} else {
+ 			syntaxFailure("Number invalid");
+@@ -207,39 +228,45 @@ public class FormulaChecker {
+ 		
+ 	}
+ 	
++	/** 
++	 * This method is called on upper case characters and parentheses to ensure 
++	 * that they are not following a multiplier of 1
++	 */
++	private void checkSolitaryOne(){
++		if(solitaryOne){
++			syntaxFailure("1 cannot be a multiplier");
++		}
++	}
++	
+ 	/**
+ 	 * Checks an int to make sure that it won't overflow. If it is going to the next time it is incremented then a syntax failure is called.
+ 	 * @param i -- The int being checked
+ 	 */
+ 	private void checkForOverflow(int i) {
+-		if(i == Integer.MAX_VALUE) {
++		if(i >= Integer.MAX_VALUE) {
+ 			syntaxFailure("Multiplier is too large");
+ 		}
+ 	}
+ 
+ 	/**
+-	 * If the character being processed is a parentheses, this splits to two different methods depending on whether there is 
++	 * If the character being processed is a parenthesis, this splits to two different methods depending on whether there is 
+ 	 * 	currently an open set of parentheses.
+ 	 * @param c -- The character being processed. This is needed to see what kind of parenthesis it is.
+ 	 */
+ 	private void processParentheses(char c) {
+ 		assert isParentheses(c);
++		checkSolitaryOne();			//Ensure a number doesn't have a multiplier of 1
++		boolean open = isOpeningParenthesis(c);
++		
+ 		if(parenthesesValid) {
++			numLowerCase = 0;
++			numbersInARow = 0;
+ 			
+-			parenthesesValid = false;
+-			
+-			if(inParentheses) {
+-				// If there are less then 2 elements between a set of parentheses then syntax is invalid
+-				if(numElements<2) {
+-					syntaxFailure("Not enough elements in a set of parentheses");
+-				}
+-				checkForClosedParentheses(c);
+-				inParentheses = false;
++			if(open){
++				handleOpenParentheses(c);
++				
+ 			} else {
+-				// Resets number of elements in a set of parentheses to 0
+-				numElements = 0;
+-				checkForOpenParentheses(c);
+-				inParentheses = true;
++				 handleClosedParentheses(c);
+ 			}
+ 		} else {
+ 			syntaxFailure("Parentheses invalid");
+@@ -247,32 +274,61 @@ public class FormulaChecker {
+ 	}
+ 	
+ 	/**
+-	 * Checks to see if a character is a closed parenthesis, fails it if it is not.
++	 * Helper method to processParentheses that checks if the given character
++	 * is an opening or closing parenthesis
++	 * @param c character to check
++	 * @return true if c is '(' else false 
++	 */
++	private boolean isOpeningParenthesis(char c){
++		return c == '(';
++	}
++	
++	
++	/**
++	 * Handles validity changes and increments for a closed parenthesis, including denoting syntax failures
+ 	 * @param c -- The character being checked
+ 	 */
+-	private void checkForClosedParentheses(char c) {
+-		if(c == ')') {
+-			// A number has to follow a closed parentheses
+-			numberValid = true;
+-			lowerCaseValid = false;
+-			upperCaseValid = false;
+-		} else {
+-			syntaxFailure("Found open parentheses: Expected closed");
++	private void handleClosedParentheses(char c) {
++		assert(c == ')');
++		// A number has to follow a closed parenthesis
++		upperCaseValid = false;
++		lowerCaseValid = false;
++		numberValid = true;
++		parenthesesValid = false;
++
++		if(parenStack.empty()){
++			syntaxFailure("Found closed parenthesis with no partner");
++		} else if(parenStack.pop() < 2){
++			syntaxFailure("Not enough elements in a set of parentheses");
+ 		}
+ 	}
+ 	
+ 	/**
+-	 * Checks to see if a character is a open parenthesis, fails it if it is not.
++	 * Handles validity changes and increments for an open parenthesis
+ 	 * @param c -- The character being checked
+ 	 */
+-	private void checkForOpenParentheses(char c) {
+-		if(c == '(') {
+-			// A new element has to follow an open parentheses, meaning an upper case letter does
+-			numberValid = false;
+-			lowerCaseValid = false;
+-			upperCaseValid = true;
++	private void handleOpenParentheses(char c) {
++		assert(c == '(');
++		// A new element has to follow an open parenthesis, meaning an upper case letter does, or another open parenthesis
++		upperCaseValid = true;
++		lowerCaseValid = false;
++		numberValid = false;
++
++		incrementStackHead();
++		parenStack.push(0);
++	}
++	
++	/**
++	 * This method increments the top element on parenStack
++	 * @return true if parenStack is not empty and the increment was successful
++	 */
++	private boolean incrementStackHead(){
++		if(!parenStack.empty()) {
++			int numElements = parenStack.pop();
++			parenStack.push(numElements + 1);
++			return true;
+ 		} else {
+-			syntaxFailure("Found closed parentheses: Expected open");
++			return false;
+ 		}
+ 	}
+ 	
+@@ -293,15 +349,16 @@ public class FormulaChecker {
+ 		failureMessage = "Formula is correct";
+ 		
+ 		// The logic for which characters can be used initially. Only open parenthesis and upper case letters are initially valid.
+-		parenthesesValid = true;
+-		inParentheses = false;
+ 		upperCaseValid = true;
+ 		lowerCaseValid = false;
+ 		numberValid = false;
++		parenthesesValid = true;
++		
++		parenStack = new Stack<>();
+ 		
+ 		// These counters are also reset to 0
+-		numElements = 0;
+ 		numLowerCase = 0;
+ 		numbersInARow = 0;
++		solitaryOne = false;
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/chemistry/FormulaCheckerTest.java b/src/chemistry/FormulaCheckerTest.java
+index 24825a8..4bd56f8 100644
+--- a/src/chemistry/FormulaCheckerTest.java
++++ b/src/chemistry/FormulaCheckerTest.java
+@@ -5,11 +5,34 @@ import org.junit.Test;
+ import static org.junit.Assert.*;
+ 
+ public class FormulaCheckerTest {
+-
++	
++	/* There are 16 basic combos:
++	 * 	cap-cap	 cap-low  cap-num  cap-par
++	 *  low-cap	 low-low  low-num  low-par
++	 *  num-cap	 num-low  num-num  num-par
++	 *  par-cap  par-low  par-num  par-par
++	 *  
++	 *  low-low has multiple cases based on the number of lower case characters in a row (indicated with numbers)
++	 *  par-* has different cases for open (indicated opar) and closed (indicated cpar) parentheses
++	 *  
++	 *  The first time each combo is tested, it is commented as such
++	 */
++	
++	
+ 	@Test
+ 	public void testNoParenthesesFormulas() {
+ 		FormulaChecker checker = new FormulaChecker();
+-		String[] formulas = {"H2O", "HCL", "Hea7Ji3IJKl", "O999999999999999", "AgBrO3", "AgCl3Cu2", "AgMnO4", "CH3CH2CH2CH2OH", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "H"};
++		String[] formulas = {				
++				"H2O", 							//Begin with cap, cap-num (H2), num-cap (2O)
++				"HCL", 							//cap-cap (HC)
++				"Hea7Ji3IJKl", 					//cap-low (He), low1-low2 (ea), low-num (a7)
++				"O999999999999999", 			//cap-num (O9), num-num (99)
++				"AgBrO3", 						//low-cap (gB)
++				"AgCl3Cu2", 					
++				"AgMnO4", 						
++				"CH3CH2CH2CH2OH", 				//Lots of molecules (yay polymers)
++				"ABCDEFGHIJKLMNOPQRSTUVWXYZ", 	//Lots of letters
++				"H"};							//Minimalist test
+ 		
+ 		for(String s: formulas) {
+ 			assertTrue("Checking " + s, checker.checkFormula(s));
+@@ -19,18 +42,41 @@ public class FormulaCheckerTest {
+ 	@Test
+ 	public void testParenthesesFormulas() {
+ 		FormulaChecker checker = new FormulaChecker();
+-		String[] formulas = {"H(CL)2", "(Hea7Ji)3IJKl3", "(OjH)37", "(JfkC4)909(H2Ao)70", "(Hel2B3)3(Six6Fi4)22(Eye32Ps4)", "Al(NO3)3",
+-				"Au2(SeO4)3", "Ba(BrO3)2H20", "CH3COO(CH2)2CH(CH3)2", "(CH3)3COOC(CH3)3"};
++		String[] formulas = {
++				"H(CL)2", 								//cap-opar ("H("), opar-cap ("(C"), cap-cpar ("L)"), cpar-num (")2")
++				"(Hea7Ji)3IJKl3", 						//Begin with paren, low-cpar ("i)")
++				"(OjH)37", 								//note: number containing 0
++				"(JfkC4)909(H2Ao)70", 					//num-cpar ("4)"), num-opar ("9(")		
++				"(Hel2B3)3(Six6Fi4)22(Eye32Ps4)7", 		
++				"Al(NO3)3",								
++				"Au2(SeO4)3", 							
++				"Ba(BrO3)2H20", 						
++				"CH3COO(CH2)2CH(CH3)2", 				
++				"(CH3)3COOC(CH3)3",
++				"((ABc4)5F)17",							//opar-opar ("((")		note: number beginning with 1
++				"(Qu3(Ki(RP2)2)4)2"};					//nominal nesting			
+ 		
+ 		for(String s: formulas) {
+ 			assertTrue("Checking " + s, checker.checkFormula(s));
+ 		}
+ 	}
++	
++	@Test
++	public void testNestedParentheses(){
++		FormulaChecker checker = new FormulaChecker();
++		assertTrue("Nested parentheses don't work yet", checker.checkFormula("(Qu3(KiP2)4)2"));
++	}
+ 
+ 	@Test
+ 	public void testIncorrectFormulas() {
+ 		FormulaChecker checker = new FormulaChecker();
+-		String[] formulas = {"H2 O", "eBBe3", "x", "5", "Wrong2", "0"};
++		String[] formulas = {
++				"H2 O", 	//space not allowed
++				"eBBe3", 	//begins with lower case letter
++				"x", 		
++				"5", 		//begins with number
++				"Wrong2", 	//too many lower case in a row low1-low2 ("ro"), low2-low3 ("on")
++				"0"};		
+ 		
+ 		for(String s: formulas) {
+ 			assertFalse("Checking " + s, checker.checkFormula(s));
+@@ -40,7 +86,18 @@ public class FormulaCheckerTest {
+ 	@Test
+ 	public void testInvalidParentheses() {
+ 		FormulaChecker checker = new FormulaChecker();
+-		String[] formulas = {"H(Io4)3", "H(Io3", "H((H2O)7)6", "()", "H2O)3", "(H20(I)4Nz2)2", "(H20)", "(H2O)B4"};
++		String[] formulas = {
++				"()", 				//Empty parentheses
++				"H2O)3", 			//Missing open parenthesis
++				"H(Io3", 			//Missing end parenthesis
++				"(H20(I)4Nz2)2", 	//Only single element in parentheses
++				"(Ab)",				//Still just single element in parentheses
++				"H(Io4)3",			//only one net item inside parentheses
++				"(H20)", 			//Not followed by number
++				"(H2O)B4", 			//Not followed by number, cpar-cap
++				"(H2O)b4",			//Not followed by number, cpar-low
++				"H((H2O)7)6", 		//Unnecessary nesting -- only one net item inside outer parentheses
++				"(H2(OH)3"};		//Nests two parentheses, doesn't close outer
+ 		
+ 		for(String s: formulas) {
+ 			assertFalse("Checking " + s, checker.checkFormula(s));
+@@ -50,20 +107,25 @@ public class FormulaCheckerTest {
+ 	@Test
+ 	public void testIncorrectMultiplier() {
+ 		FormulaChecker checker = new FormulaChecker();
+-		String[] formulas = {"B0", "Ze098", "X9Je011"};
++		String[] formulas = {"B0", "Ze098", "X9Je011", "A1"};		//Numbers begin with 0 or are 1
+ 		
+ 		for(String s: formulas) {
+ 			assertFalse("Checking " + s, checker.checkFormula(s));
+ 		}
++		
++		/* Unfortunately, we can't test the overflow check, 
++		 * but given that I just ran out of heap space trying to, 
++		 * I don't think it'll be much of a problem */
+ 	}
+ 	
+ 	@Test
+ 	public void testInvalidCharacters() {
+ 		FormulaChecker checker = new FormulaChecker();
+-		String[] formulas = {"?3", "H20!", "K#9"};
++		String[] formulas = {"?3", "H20!", "K#9"};		//non-alphanumeric and non-parenthetical characters
+ 		
+ 		for(String s: formulas) {
+ 			assertFalse("Checking " + s, checker.checkFormula(s));
+ 		}
+ 	}
++
+ }
+\ No newline at end of file

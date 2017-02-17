@@ -1,0 +1,64 @@
+DEFENSIVE PROGRAMMING
+General
+
+Does the routine protect itself from bad input data?
+	Bad threshold input: Yes, in findThreshold
+	Bad log input: Yes, primarily in findNextInterestingLine, and throughout
+
+Have you used assertions to document assumptions, including preconditions and postconditions?
+	Barely
+
+Have assertions been used only to document conditions that should never occur?
+	Yes
+
+Does the architecture or high-level design specify a specific set of error-handling techniques?
+Does the architecture or high-level design specify whether error handling should favor robustness or correctness?
+	Favors correctness when it comes to IP parsing and robustness in relation to numbers
+	
+Have barricades been created to contain the damaging effect of errors and reduce the amount of code that has to be concerned about error processing?
+	Not really. In parsing a stream, I didn't see a very good way to handle all input validation in one location
+
+Have debugging aids been used in the code?
+Have debugging aids been installed in such a way that they can be activated or deactivated without a great deal of fuss?
+	Do assertions count? Because then no.
+	
+Is the amount of defensive programming code appropriate—neither too much nor too little?
+	Sure!
+
+Have you used offensive-programming techniques to make errors difficult to overlook during development?
+	Hard to tell now, isn't it? Is this  code supposed to by in developer or production stage?
+
+Exceptions
+Has your project defined a standardized approach to exception handling?
+	Yep, log warnings when exceptions are caught. 
+
+Have you considered alternatives to using an exception?
+	I have several boolean checks to try to avoid using exceptions where the data would not be exceptional
+
+Is the error handled locally rather than throwing a nonlocal exception, if possible?
+	Yes, some a passed a short way up a chain, but they are appropriately abstracted and do not travel too far.
+
+Does the code avoid throwing exceptions in constructors and destructors?
+	Uh-huh
+	
+Are all exceptions at the appropriate levels of abstraction for the routines that throw them?
+	Yep. Well, ParseException is questionable, but I think it's still okay because it's a problem from trying to parse attempts out of a String
+
+Does each exception include all relevant exception background information?
+	I thinnk so...
+	
+Is the code free of empty catch blocks? (Or if an empty catch block truly is appropriate, is it documented?)
+	Yes.
+	
+Security Issues
+Does the code that checks for bad input data check for attempted buffer overflows, SQL injection, HTML injection, integer overflows, and other malicious inputs?
+	Didn't think that was necessary, except maybe integer overflows, which I did not.
+	
+Are all error-return codes checked?
+	yeah
+	
+Are all exceptions caught?
+	Yep.
+	
+Do error messages avoid providing information that would help an attacker break into the system?
+	I think so.
